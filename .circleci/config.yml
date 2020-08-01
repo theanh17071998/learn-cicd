@@ -1,0 +1,73 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: circleci/node:latest
+    working_directory: ~/theanh28
+    steps:
+      - checkout # Dowload repo
+      - run: yarn install
+      - run: yarn run build # build folder dist
+
+      - save_cache:
+          paths:
+            - node_modules
+            - dist
+            - test
+            - package.json
+            - firebase.json
+            - .firebaserc
+          key: v1-dist-{{ .Environment.CIRCLE_BRANCH }}-{{ .Environment.CIRCLE_SHA1 }}
+  test:
+    docker:
+      - image: circleci/node:latest
+    working_directory: ~/theanh28
+    steps:
+      - restore_cache:
+          keys:
+            - v1-dist-{{ .Environment.CIRCLE_BRANCH }}-{{ .Environment.CIRCLE_SHA1 }} 
+      - run:
+          name: Chạy unit test
+          command: yarn test
+  deploy:
+      docker:
+        - image: circleci/node:latest
+          environment:
+            KEY_TOKEN_FIREBASE: 1//0eIB391-vLz-qCgYIARAAGA4SNwF-L9IrZYfjgZ7_dedWbq4AjghkDcakG900gz6rxiBdGNkOxq5NBTriyagnGuhFEUH_1ZclYUk
+      working_directory: ~/theanh28 
+      steps:
+        - restore_cache:
+            keys:
+              - v1-dist-{{ .Environment.CIRCLE_BRANCH }}-{{ .Environment.CIRCLE_SHA1 }} 
+        - run:
+            name: show directory 
+            command: pwd
+        - run: 
+            name: show children file
+            command: ls
+        - run:
+            name: Install Firebase
+            command: yarn add -D firebase-tools
+        - run:
+            name: look in directory
+            command: ls -ltr
+        - run:
+            name: Deploy Master to Firebase
+            command: yarn theanh-deploy -- --token=$KEY_TOKEN_FIREBASE
+workflows:
+  version: 2
+  theanh_deploy:
+    jobs:
+      - build
+      - test:
+          requires:
+            - build
+          filters:
+            branches:
+              only: master
+      - deploy:
+          requires:
+            - test
+          filters:
+            branches:
+              only: master
